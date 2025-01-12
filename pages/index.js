@@ -15,7 +15,7 @@ export default function Home() {
     };
 
     initializeUser();
-  }, []);
+  }, [user]);
 
 
   useEffect(() => {
