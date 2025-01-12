@@ -8,6 +8,11 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+export function isUserLoggedIn() {
+  const user = supabase.auth.user();
+  return user !== null;
+}
+
 export async function signInWithGoogle() {
   const { user, session, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',

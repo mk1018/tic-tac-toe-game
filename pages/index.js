@@ -6,16 +6,26 @@ export default function Home() {
   const [board, setBoard] = useState(Array(9).fill(null));
   const [isXNext, setIsXNext] = useState(true);
   const [winner, setWinner] = useState(null);
+  const [gameId, setGameId] = useState(null);
 
   useEffect(() => {
-    const initializeGame = async () => {
+    const initializeUser = async () => {
       const { data: userData } = await supabase.auth.getUser();
       setUser(userData?.user);
+    };
 
+    initializeUser();
+  }, []);
+
+
+  useEffect(() => {
+    if (!gameId) return;
+
+    const initializeGame = async () => {
       const { data, error } = await supabase
         .from('game')
         .select('*')
-        .eq('id', 1);
+        .eq('id', gameId);
 
       if (error) {
         console.error('Error fetching game data:', error);
@@ -56,7 +66,7 @@ export default function Home() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [gameId]);
 
   const handleClick = async (index) => {
     if (board[index] || winner) return;
@@ -73,7 +83,7 @@ export default function Home() {
     const { error } = await supabase
       .from('game')
       .update({ board: JSON.stringify(newBoard), isxnext: newIsXNext, winner: newWinner })
-      .eq('id', 1);
+      .eq('id', gameId);
 
     if (error) {
       console.error('Error updating game:', error);
@@ -108,20 +118,47 @@ export default function Home() {
     const { error } = await supabase
       .from('game')
       .update({ board: JSON.stringify(initialBoard), isxnext: true, winner: null })
-      .eq('id', 1);
+      .eq('id', gameId);
 
     if (error) {
       console.error('Error resetting game:', error);
     }
   };
 
+  const handleNewGame = async () => {
+    if (!user) {
+      console.error('User must be logged in to start a new game.');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('game')
+      .insert([
+        {
+          board: JSON.stringify(Array(9).fill(null)),
+          isxnext: true,
+          winner: null,
+          player1: user.id,
+        },
+      ])
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('Error creating new game:', error);
+    } else {
+      console.log('New game created successfully:', data);
+      setGameId(data.id);
+    }
+  };
+
   const handleGoogleLogin = async () => {
-    const { user, error } = await signInWithGoogle();
+    const { user: loggedInUser, error } = await signInWithGoogle();
     if (error) {
       console.error('Google login error:', error.message);
     } else {
-      console.log('Login successful:', user);
-      setUser(user);
+      console.log('Login successful:', loggedInUser);
+      setUser(loggedInUser);
     }
   };
 
@@ -152,13 +189,18 @@ export default function Home() {
           <p>User: {user.email}</p>
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 100px)', gap: '5px' }}>
+      {gameId && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 100px)', gap: '5px' }}>
         {board.map((value, index) => (
           <button key={index} onClick={() => handleClick(index)} style={{ width: '100px', height: '100px', fontSize: '24px' }}>
             {value}
           </button>
         ))}
       </div>
+      )}
+      <button onClick={handleNewGame} style={{ marginTop: '20px', padding: '10px 20px', fontSize: '16px' }}>
+        New Game
+      </button>
       <button onClick={resetGame} style={{ marginTop: '20px', padding: '10px 20px', fontSize: '16px' }}>
         Reset Game
       </button>
